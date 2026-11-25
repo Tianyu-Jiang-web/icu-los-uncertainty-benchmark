@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CRPS Explorer — Uncertainty Quantification</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --navy:   #063E8D;
+    --gold:   #FFD700;
+    --gold2:  #E6B800;
+    --sky:    #BDD1F5;
+    --bg:     #F4F7FF;
+    --card:   #FFFFFF;
+    --text:   #1A1A2E;
+    --muted:  #6B7A99;
+    --red:    #E05252;
+    --green:  #2EAD7A;
+    --crps-fill: rgba(255,215,0,0.22);
+    --crps-stroke: #E6B800;
+    --pred-stroke: #063E8D;
+    --obs-stroke: #E05252;
+    --radius: 16px;
+    --shadow: 0 4px 32px rgba(6,62,141,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ─────────────────────────────────── */
+  header {
+    background: var(--navy);
+    padding: 28px 48px 24px;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  header .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    background: rgba(255,215,0,0.12);
+    border: 1px solid rgba(255,215,0,0.3);
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    align-self: center;
+  }
+  header h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+  header h1 span { color: var(--gold); }
+  header p {
+    font-size: 13px;
+    color: var(--sky);
+    margin-top: 4px;
+    font-weight: 300;
+  }
+
+  /* ── FORMULA BANNER ──────────────────────────── */
+  .formula-banner {
+    background: linear-gradient(135deg, #0a2f6b 0%, #0d3d8e 100%);
+    border-bottom: 3px solid var(--gold);
+    padding: 20px 48px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .formula-banner .label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--sky);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .formula-latex {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    color: #fff;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 10px 20px;
+    letter-spacing: 0.5px;
+  }
+  .formula-latex .gold { color: var(--gold); }
+  .formula-latex .sky  { color: var(--sky); }
+
+  /* ── MAIN LAYOUT ─────────────────────────────── */
+  .main {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 160px);
+  }
+
+  /* ── CONTROLS PANEL ──────────────────────────── */
+  .controls {
+    background: var(--card);
+    border-right: 1px solid #E0E8F8;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .controls h2 {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .param-group {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .param {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .param-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .param label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .param label .sym {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--navy);
+    background: var(--bg);
+    padding: 1px 7px;
+    border-radius: 4px;
+    border: 1px solid #C8D8F0;
+  }
+  .param label .sym.red  { color: var(--red); border-color: #F8CCCC; background: #FEF5F5; }
+  .param .val-display {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--navy);
+    background: var(--bg);
+    border: 1.5px solid var(--sky);
+    border-radius: 8px;
+    padding: 6px 12px;
+    text-align: center;
+    min-width: 60px;
+  }
+  .param .val-display.red { color: var(--red); border-color: #F8CCCC; background: #FEF5F5; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"].blue {
+    background: linear-gradient(to right, var(--navy) 0%, var(--navy) var(--pct, 50%), #D0DCF0 var(--pct, 50%), #D0DCF0 100%);
+  }
+  input[type="range"].red-range {
+    background: linear-gradient(to right, var(--red) 0%, var(--red) var(--pct, 50%), #F0D0D0 var(--pct, 50%), #F0D0D0 100%);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--navy);
+    border: 3px solid #fff;
+    box-shadow: 0 1px 6px rgba(6,62,141,0.30);
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  input[type="range"].red-range::-webkit-slider-thumb { background: var(--red); }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  .divider {
+    height: 1px;
+    background: #E8EEF8;
+    margin: 0 -28px;
+  }
+
+  /* CRPS scorebox */
+  .crps-score-box {
+    background: var(--navy);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .crps-score-box .score-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--sky);
+    font-weight: 600;
+  }
+  .crps-score-box .score-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .crps-score-box .score-desc {
+    font-size: 12px;
+    color: var(--sky);
+    font-style: italic;
+  }
+
+  /* quality bar */
+  .quality-bar-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .quality-label { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; }
+  .quality-bar-bg {
+    height: 8px;
+    background: #E0E8F8;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .quality-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+  }
+  .quality-text {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    padding: 4px;
+    border-radius: 6px;
+  }
+
+  /* ── CHART AREA ───────────────────────────────── */
+  .chart-area {
+    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    background: var(--bg);
+  }
+  .chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .canvas-wrap {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    flex: 1;
+  }
+
+  canvas#crpsCanvas {
+    display: block;
+    width: 100%;
+    height: 360px;
+  }
+
+  /* legend */
+  .legend {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 0 4px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .legend-line {
+    width: 28px;
+    height: 3px;
+    border-radius: 2px;
+  }
+  .legend-line.pred { background: var(--pred-stroke); }
+  .legend-line.obs  {
+    background: var(--obs-stroke);
+    background: repeating-linear-gradient(90deg, var(--obs-stroke) 0px, var(--obs-stroke) 6px, transparent 6px, transparent 10px);
+    height: 2px;
+  }
+  .legend-fill {
+    width: 28px;
+    height: 14px;
+    border-radius: 3px;
+    background: var(--crps-fill);
+    border: 1.5px solid var(--crps-stroke);
+  }
+
+  /* ── KEY TAKEAWAYS ───────────────────────────── */
+  .takeaways {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .takeaway {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 3px solid var(--navy);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .takeaway:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 32px rgba(6,62,141,0.16);
+  }
+  .takeaway:nth-child(2) { border-top-color: var(--gold2); }
+  .takeaway:nth-child(3) { border-top-color: var(--green); }
+  .takeaway .num {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .takeaway p {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--text);
+    font-weight: 400;
+  }
+  .takeaway strong { color: var(--navy); }
+  .takeaway:nth-child(2) strong { color: var(--gold2); }
+  .takeaway:nth-child(3) strong { color: var(--green); }
+
+  /* ── RESPONSIVE ─────────────────────────────── */
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .controls { border-right: none; border-bottom: 1px solid #E0E8F8; }
+    .takeaways { grid-template-columns: 1fr; }
+    header, .formula-banner { padding: 20px 24px; }
+    .chart-area { padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div>
+    <div class="badge">ICU LOS · UQ Benchmark</div>
+    <h1>CRPS <span>Explorer</span></h1>
+    <p>Continuous Ranked Probability Score — Interactive Visualizer</p>
+  </div>
+</header>
+
+<!-- FORMULA BANNER -->
+<div class="formula-banner">
+  <span class="label">Definition</span>
+  <div class="formula-latex">
+    <span class="gold">CRPS</span>(F, y) =
+    ∫<sub>−∞</sub><sup>+∞</sup>
+    [<span class="sky">F(x)</span> − <span style="color:#F87E7E">𝟙(x ≥ y)</span>]² dx
+  </div>
+  <span class="label" style="color:rgba(189,209,245,0.6)">where F = predictive CDF, y = observed outcome</span>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- CONTROLS -->
+  <aside class="controls">
+    <h2>Parameters</h2>
+
+    <div class="param-group">
+
+      <!-- mu -->
+      <div class="param">
+        <div class="param-header">
+          <label><span class="sym">μ</span> Predicted Mean (days)</label>
+          <div class="val-display" id="muDisplay">4.0</div>
+        </div>
+        <input type="range" id="muSlider" class="blue" min="1" max="10" step="0.1" value="4.0"/>
+      </div>
+
+      <!-- sigma -->
+      <div class="param">
+        <div class="param-header">
+          <label><span class="sym">σ</span> Std Dev (uncertainty)</label>
+          <div class="val-display" id="sigmaDisplay">1.0</div>
+        </div>
+        <input type="range" id="sigmaSlider" class="blue" min="0.05" max="5" step="0.05" value="1.0"/>
+      </div>
+
+      <!-- y_obs -->
+      <div class="param">
+        <div class="param-header">
+          <label><span class="sym red">y</span> Observed LOS (days)</label>
+          <div class="val-display red" id="yDisplay">4.0</div>
+        </div>
+        <input type="range" id="ySlider" class="red-range" min="0" max="14" step="0.1" value="4.0"/>
+      </div>
+
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- CRPS score box -->
+    <div class="crps-score-box">
+      <span class="score-label">CRPS Score</span>
+      <span class="score-val" id="crpsValue">—</span>
+      <span class="score-desc" id="crpsDesc">Lower is better</span>
+    </div>
+
+    <!-- Quality bar -->
+    <div class="quality-bar-wrap">
+      <div class="quality-label">
+        <span>Worse prediction</span>
+        <span>Better prediction</span>
+      </div>
+      <div class="quality-bar-bg">
+        <div class="quality-bar-fill" id="qualityBar" style="width:50%; background:var(--gold2);"></div>
+      </div>
+      <div class="quality-text" id="qualityText" style="color:var(--gold2); background:#FFF9E0;">—</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- MAE note -->
+    <div style="background:#F0F4FF; border-radius:10px; padding:14px 16px; border-left:3px solid var(--navy);">
+      <div style="font-size:11px; font-weight:600; color:var(--navy); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px;">Point Prediction Limit</div>
+      <div style="font-family:'DM Mono',monospace; font-size:13px; color:var(--text);">
+        When σ → 0:<br/>
+        <span style="color:var(--navy); font-weight:500;">CRPS → MAE = |μ − y|</span>
+        <span style="color:var(--muted); font-size:11px; display:block; margin-top:4px; font-style:italic;">Try dragging σ to minimum (0.05)!</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- CHART AREA -->
+  <main class="chart-area">
+
+    <div class="chart-title">Predictive CDF vs Observed Outcome</div>
+
+    <div class="canvas-wrap">
+      <canvas id="crpsCanvas"></canvas>
+      <div class="legend" style="margin-top:16px;">
+        <div class="legend-item"><div class="legend-line pred"></div> Predictive CDF F(x) — Normal(μ, σ)</div>
+        <div class="legend-item"><div class="legend-line obs"></div> Observed CDF 𝟙(x ≥ y)</div>
+        <div class="legend-item"><div class="legend-fill"></div> CRPS area = [F(x) − 𝟙(x ≥ y)]²</div>
+      </div>
+    </div>
+
+    <!-- TAKEAWAYS -->
+    <div class="takeaways">
+      <div class="takeaway">
+        <div class="num">KEY POINT 01</div>
+        <p><strong>CRPS compares the full predictive distribution</strong> with the observed outcome — not just the mean.</p>
+      </div>
+      <div class="takeaway">
+        <div class="num">KEY POINT 02</div>
+        <p><strong>Lower CRPS means better probabilistic prediction</strong> — rewarding both accuracy and calibrated uncertainty.</p>
+      </div>
+      <div class="takeaway">
+        <div class="num">KEY POINT 03</div>
+        <p>For deterministic point predictions, <strong>CRPS reduces exactly to MAE</strong>. It generalises the absolute error to distributions.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ─── NORMAL CDF via erf ───────────────────────────────────────────────────
+function erf(x) {
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const sign = x < 0 ? -1 : 1;
+  x = Math.abs(x);
+  const t = 1 / (1 + p * x);
+  const y = 1 - ((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return sign * y;
+}
+function normalCDF(x, mu, sigma) {
+  return 0.5 * (1 + erf((x - mu) / (sigma * Math.sqrt(2))));
+}
+function normalPDF(x, mu, sigma) {
+  return Math.exp(-0.5*((x-mu)/sigma)**2) / (sigma * Math.sqrt(2*Math.PI));
+}
+
+// ─── CRPS for Normal(mu, sigma) vs y ─────────────────────────────────────
+const SIGMA_DEGENERATE = 0.12; // threshold below which we treat as point prediction
+
+function crpsNormal(mu, sigma, y) {
+  if (sigma < SIGMA_DEGENERATE) return Math.abs(mu - y); // σ→0 limit = MAE
+  const z = (y - mu) / sigma;
+  const phi = normalPDF(z, 0, 1);
+  const Phi = normalCDF(z, 0, 1);
+  return sigma * (z * (2*Phi - 1) + 2*phi - 1/Math.sqrt(Math.PI));
+}
+
+// CDF for degenerate case: Heaviside step function at mu
+function degenerateCDF(x, mu) {
+  return x < mu ? 0 : 1;
+}
+
+// ─── CANVAS SETUP ────────────────────────────────────────────────────────
+const canvas = document.getElementById('crpsCanvas');
+const ctx    = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = rect.width  * dpr;
+  canvas.height = 360        * dpr;
+  canvas.style.width  = rect.width  + 'px';
+  canvas.style.height = '360px';
+  ctx.scale(dpr, dpr);
+}
+
+// ─── DRAW ─────────────────────────────────────────────────────────────────
+function draw() {
+  const mu    = parseFloat(document.getElementById('muSlider').value);
+  const sigma = parseFloat(document.getElementById('sigmaSlider').value);
+  const y_obs = parseFloat(document.getElementById('ySlider').value);
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.width  / dpr;
+  const H = canvas.height / dpr;
+
+  // Margins
+  const ml = 62, mr = 32, mt = 28, mb = 52;
+  const pw = W - ml - mr;
+  const ph = H - mt - mb;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Fixed x range: always [0, 16] so axis never jumps
+  const xMin = 0;
+  const xMax = 16;
+
+  function toScreenX(x) { return ml + (x - xMin) / (xMax - xMin) * pw; }
+  function toScreenY(v) { return mt + (1 - v) * ph; }   // v ∈ [0,1]
+
+  const N = 400;
+  const xs = Array.from({length: N}, (_, i) => xMin + (i / (N-1)) * (xMax - xMin));
+
+  const isDegenerate = sigma < SIGMA_DEGENERATE;
+
+  // helper: get CDF value at x
+  function getCDF(x) {
+    return isDegenerate ? degenerateCDF(x, mu) : normalCDF(x, mu, sigma);
+  }
+
+  // ── CRPS FILL ──
+  ctx.beginPath();
+  let startedLeft = false;
+  xs.forEach((x) => {
+    if (x > y_obs) return;
+    const Fx = getCDF(x);
+    if (!startedLeft) { ctx.moveTo(toScreenX(x), toScreenY(0)); startedLeft = true; }
+    ctx.lineTo(toScreenX(x), toScreenY(Fx));
+  });
+  if (startedLeft) {
+    ctx.lineTo(toScreenX(Math.min(y_obs, xMax)), toScreenY(0));
+    ctx.closePath();
+  }
+  ctx.fillStyle = 'rgba(255,215,0,0.18)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(230,184,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // segment 2: x ≥ y_obs — indicator=1 → fill from F(x) to 1
+  ctx.beginPath();
+  let startedRight = false;
+  xs.forEach((x) => {
+    if (x < y_obs) return;
+    const Fx = getCDF(x);
+    if (!startedRight) { ctx.moveTo(toScreenX(x), toScreenY(1)); startedRight = true; }
+    ctx.lineTo(toScreenX(x), toScreenY(Fx));
+  });
+  if (startedRight) {
+    ctx.lineTo(toScreenX(xMax), toScreenY(1));
+    ctx.closePath();
+  }
+  ctx.fillStyle = 'rgba(255,215,0,0.18)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(230,184,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // ── GRID ──
+  ctx.save();
+  ctx.strokeStyle = '#E0E8F5';
+  ctx.lineWidth = 1;
+  [0, 0.25, 0.5, 0.75, 1.0].forEach(v => {
+    const sy = toScreenY(v);
+    ctx.beginPath(); ctx.moveTo(ml, sy); ctx.lineTo(ml+pw, sy); ctx.stroke();
+    ctx.fillStyle = '#9AABBF';
+    ctx.font = '11px DM Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(v.toFixed(2), ml - 8, sy + 4);
+  });
+  // x axis ticks — fixed range [0,16], step by 2
+  for (let xi = 0; xi <= xMax; xi += 2) {
+    const sx = toScreenX(xi);
+    ctx.beginPath(); ctx.moveTo(sx, mt+ph); ctx.lineTo(sx, mt+ph+5); ctx.stroke();
+    ctx.fillStyle = '#9AABBF';
+    ctx.textAlign = 'center';
+    ctx.fillText(xi.toFixed(0), sx, mt+ph+18);
+  }
+  ctx.restore();
+
+  // ── AXIS LABELS ──
+  ctx.save();
+  ctx.fillStyle = '#6B7A99';
+  ctx.font = '12px DM Sans, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('ICU LOS (days)', ml + pw/2, H - 8);
+  ctx.translate(16, mt + ph/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText('CDF probability', 0, 0);
+  ctx.restore();
+
+  // ── INDICATOR STEP FUNCTION 𝟙(x ≥ y) ──
+  ctx.beginPath();
+  ctx.setLineDash([8, 5]);
+  ctx.strokeStyle = '#E05252';
+  ctx.lineWidth = 2.5;
+  ctx.moveTo(toScreenX(xMin), toScreenY(0));
+  ctx.lineTo(toScreenX(y_obs), toScreenY(0));
+  ctx.moveTo(toScreenX(y_obs), toScreenY(0));
+  ctx.lineTo(toScreenX(y_obs), toScreenY(1));
+  ctx.moveTo(toScreenX(y_obs), toScreenY(1));
+  ctx.lineTo(toScreenX(xMax), toScreenY(1));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── PREDICTIVE CDF F(x) ──
+  ctx.strokeStyle = '#063E8D';
+  ctx.lineWidth = 2.5;
+  if (isDegenerate) {
+    // Draw Heaviside step at mu: 0 for x<mu, 1 for x≥mu
+    ctx.beginPath();
+    ctx.moveTo(toScreenX(xMin), toScreenY(0));
+    ctx.lineTo(toScreenX(mu), toScreenY(0));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(toScreenX(mu), toScreenY(0));
+    ctx.lineTo(toScreenX(mu), toScreenY(1));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(toScreenX(mu), toScreenY(1));
+    ctx.lineTo(toScreenX(xMax), toScreenY(1));
+    ctx.stroke();
+
+    // Draw open/filled circles at the jump
+    ctx.beginPath();
+    ctx.arc(toScreenX(mu), toScreenY(0), 4, 0, 2*Math.PI);
+    ctx.strokeStyle = '#063E8D';
+    ctx.lineWidth = 2;
+    ctx.fillStyle = '#fff';
+    ctx.fill(); ctx.stroke(); // open circle at bottom
+
+    ctx.beginPath();
+    ctx.arc(toScreenX(mu), toScreenY(1), 4, 0, 2*Math.PI);
+    ctx.fillStyle = '#063E8D';
+    ctx.fill(); // filled circle at top
+  } else {
+    ctx.beginPath();
+    xs.forEach((x, i) => {
+      const sy = toScreenY(normalCDF(x, mu, sigma));
+      const sx = toScreenX(x);
+      i === 0 ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+    });
+    ctx.stroke();
+  }
+
+  // ── y_obs VERTICAL LINE ──
+  ctx.beginPath();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = 'rgba(224,82,82,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.moveTo(toScreenX(y_obs), mt);
+  ctx.lineTo(toScreenX(y_obs), mt + ph);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ── y_obs LABEL ──
+  ctx.save();
+  ctx.fillStyle = '#E05252';
+  ctx.font = 'bold 12px DM Mono, monospace';
+  ctx.textAlign = 'left';
+  const yx = toScreenX(y_obs);
+  ctx.fillText(`y = ${y_obs.toFixed(1)}`, yx + 6, mt + 16);
+  ctx.restore();
+
+  // ── mu MARKER on x-axis ──
+  const mux = toScreenX(mu);
+  ctx.save();
+  ctx.fillStyle = '#063E8D';
+  ctx.font = 'bold 12px DM Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`μ = ${mu.toFixed(1)}`, mux, mt + ph + 36);
+
+  // vertical dotted at mu
+  ctx.beginPath();
+  ctx.setLineDash([3, 4]);
+  ctx.strokeStyle = 'rgba(6,62,141,0.3)';
+  ctx.lineWidth = 1.5;
+  ctx.moveTo(mux, mt + ph);
+  ctx.lineTo(mux, mt + ph * 0.4);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // ── DEGENERATE MODE BANNER ──
+  if (isDegenerate) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(46,173,122,0.12)';
+    ctx.strokeStyle = '#2EAD7A';
+    ctx.lineWidth = 1.5;
+    const bw = 220, bh = 36, bx = ml + pw - bw - 4, by = mt + 6;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 6);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#1A7A54';
+    ctx.font = 'bold 12px DM Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('σ → 0  ∴  CRPS = MAE = |μ − y|', bx + bw/2, by + 23);
+    ctx.restore();
+  }
+
+  // ── AXIS LINES ──
+  ctx.beginPath();
+  ctx.strokeStyle = '#B0BDD0';
+  ctx.lineWidth = 1.5;
+  ctx.moveTo(ml, mt); ctx.lineTo(ml, mt+ph+1);
+  ctx.moveTo(ml, mt+ph+1); ctx.lineTo(ml+pw, mt+ph+1);
+  ctx.stroke();
+
+  // ── Update CRPS display ──
+  const crps = crpsNormal(mu, sigma, y_obs);
+  const crpsStr = crps.toFixed(4);
+  document.getElementById('crpsValue').textContent = crpsStr;
+
+  // MAE
+  const mae = Math.abs(mu - y_obs);
+  if (isDegenerate) {
+    document.getElementById('crpsDesc').textContent = `σ → 0: CRPS = MAE = |μ−y| = ${mae.toFixed(2)} ✓`;
+    document.getElementById('crpsValue').style.color = '#2EAD7A';
+  } else {
+    document.getElementById('crpsDesc').textContent = `MAE = |μ−y| = ${mae.toFixed(2)}  (σ→0 limit)`;
+    document.getElementById('crpsValue').style.color = 'var(--gold)';
+  }
+  // Quality bar
+  const maxCrps = 5.0;
+  const quality = Math.max(0, 1 - crps / maxCrps);
+  const barPct = (quality * 100).toFixed(1);
+  const bar = document.getElementById('qualityBar');
+  bar.style.width = barPct + '%';
+  const qText = document.getElementById('qualityText');
+  if (quality > 0.75) {
+    bar.style.background = '#2EAD7A';
+    qText.style.color = '#1A7A54'; qText.style.background = '#E8F9F3';
+    qText.textContent = 'Excellent prediction';
+  } else if (quality > 0.5) {
+    bar.style.background = '#063E8D';
+    qText.style.color = '#063E8D'; qText.style.background = '#EEF3FC';
+    qText.textContent = 'Good prediction';
+  } else if (quality > 0.25) {
+    bar.style.background = '#E6B800';
+    qText.style.color = '#8B6914'; qText.style.background = '#FFF8E1';
+    qText.textContent = 'Moderate prediction';
+  } else {
+    bar.style.background = '#E05252';
+    qText.style.color = '#CC3333'; qText.style.background = '#FEF5F5';
+    qText.textContent = 'Poor prediction';
+  }
+}
+
+// ─── SLIDER UPDATES ──────────────────────────────────────────────────────
+function updateSlider(slider, display, decimals, prefix) {
+  const v = parseFloat(slider.value);
+  const min = parseFloat(slider.min), max = parseFloat(slider.max);
+  const pct = ((v - min) / (max - min) * 100).toFixed(1);
+  slider.style.setProperty('--pct', pct + '%');
+  display.textContent = v.toFixed(decimals);
+  draw();
+}
+
+['mu','sigma','y'].forEach(id => {
+  const slider  = document.getElementById(id + 'Slider');
+  const display = document.getElementById(id + 'Display');
+  const dec = id === 'sigma' ? 1 : 1;
+  slider.addEventListener('input', () => updateSlider(slider, display, dec));
+  updateSlider(slider, display, dec);   // init
+});
+
+// ─── RESIZE ──────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+resizeCanvas();
+draw();
+</script>
+</body>
+</html>

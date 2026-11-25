@@ -6,6 +6,10 @@ This repository is a **modular refactor** of the original research scripts. Beha
 
 (中文说明: [README.zh-CN.md](README.zh-CN.md))
 
+**Live demos** (GitHub Pages, served from `docs/`):
+[Results dashboard](https://tianyu-jiang-web.github.io/icu-los-uncertainty-benchmark/result/) ·
+[CRPS explorer](https://tianyu-jiang-web.github.io/icu-los-uncertainty-benchmark/crps-explorer/)
+
 ## Models compared
 
 DRF · Quantile Regression Forest · Random Forest (ranger) · XGBoost (one pinball-loss model per quantile) · Ensemble DRF (stacking) · Hybrid NN + DRF · Deep Ensemble · MC Dropout · Bayesian NN (Bayes by Backprop) · Distributional DNN. Primary metric: CRPS on a 39-level quantile grid (0.025–0.975); also MAE, RMSE, 90% coverage/width, PIT, coverage calibration, subgroup CRPS, fairness and missingness sensitivity.

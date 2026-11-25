@@ -1,4 +1,4 @@
-# drf-replication-ehr-v3-modular
+# icu-los-uncertainty-benchmark
 
 `drf-replication-ehr-v3`（`scripts.R`、`script_recovery.R`、`39quantiles.R`、`lancet_style.R`、`crps_guidance_lancet.R`）的模块化版本。
 功能、随机种子、数据划分、超参网格、分位数网格均与原脚本一致；原文件夹未被修改。

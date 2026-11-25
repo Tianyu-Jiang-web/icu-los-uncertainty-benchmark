@@ -1,0 +1,9 @@
+.Rhistory
+.RData
+.Rproj.user
+.DS_Store
+outputs/
+*.rds
+*.pt
+data/
+*.csv
